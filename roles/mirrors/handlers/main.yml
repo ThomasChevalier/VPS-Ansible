@@ -1,0 +1,6 @@
+---
+- name: update mirrors
+  service:
+    name: mirrors
+    state: started
+    daemon_reload: yes

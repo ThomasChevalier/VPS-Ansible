@@ -1,0 +1,23 @@
+---
+- name: Install MariaDB
+  pacman:
+    name: mariadb
+    state: present
+  register: mariadb_installation
+
+- name: Create database
+  command: mariadb-install-db --user=mysql --basedir=/usr --datadir=/var/lib/mysql
+  when: mariadb_installation.changed
+
+- name: Change owner of the data dir
+  file:
+    path: /var/lib/mysql
+    state: directory
+    owner: mysql
+    group: mysql
+
+- name: Install mariadb service
+  service:
+    name: mariadb.service
+    enabled: yes
+    state: started

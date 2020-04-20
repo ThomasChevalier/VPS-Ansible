@@ -1,0 +1,28 @@
+---
+- name: Increase password rounds
+  lineinfile:
+    path: /etc/pam.d/passwd
+    regexp: '^password\s+required\s+pam_unix.so\s+sha512\s+shadow\s+nullok'
+    line: "password required  pam_unix.so sha512 shadow nullok rounds={{ password_hash_rounds }}"
+    state: present
+
+- name: Change root password
+  user:
+    name: root
+    create_home: no
+    password: "{{ root_password | password_hash('sha512', lookup('vars', 'password_salt'), rounds=lookup('vars', 'password_hash_rounds')) }}"
+
+- name: Create non root user
+  user:
+    name: "{{ non_root_user }}"
+    password: "{{ non_root_password | password_hash('sha512', lookup('vars', 'password_salt'), rounds=lookup('vars', 'password_hash_rounds')) }}"
+    groups: wheel
+    append: yes
+
+- name: Add wheel group to sudoers
+  lineinfile:
+    path: /etc/sudoers
+    state: present
+    regexp: '^#?\s*%wheel\s+ALL\s*=\s*\(\s*ALL\s*\)'
+    line: "%wheel ALL=(ALL) NOPASSWD: ALL"
+    validate: /usr/sbin/visudo -cf %s

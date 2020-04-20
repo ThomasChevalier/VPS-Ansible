@@ -1,0 +1,11 @@
+---
+- name: Install nginx
+  pacman:
+    name: nginx-mainline
+    state: present
+
+- name: Enable nginx service
+  service:
+    name: nginx.service
+    enabled: yes
+    state: started

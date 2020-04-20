@@ -1,0 +1,6 @@
+[Unit]
+Description=Update the mirror list.
+
+[Service]
+Type=oneshot
+ExecStart=reflector -c "France" -f 12 -l 10 -n 12 --save /etc/pacman.d/mirrorlist

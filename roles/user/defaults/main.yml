@@ -1,0 +1,6 @@
+---
+password_hash_rounds: 65536
+root_password: root
+non_root_user: thomas
+non_root_password: thomas
+password_salt: change_this_salt

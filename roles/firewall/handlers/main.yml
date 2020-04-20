@@ -1,0 +1,6 @@
+---
+- name: restart fwknopd
+  shell: "fwknopd -R && nft add element inet filter fwknop_allowed { {{ spa_temp_white_list }} . tcp . {{ ssh_port }} timeout 1h }"
+
+- name: restart fail2ban
+  service: {name: fail2ban, state: restarted}

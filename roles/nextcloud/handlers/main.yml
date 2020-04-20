@@ -1,0 +1,10 @@
+---
+- name: restart webserver
+  service:
+    name: nginx.service
+    state: restarted
+
+- name: restart mysql
+  service:
+    name: mariadb.service
+    state: restarted

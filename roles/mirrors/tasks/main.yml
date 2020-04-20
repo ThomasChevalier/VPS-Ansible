@@ -1,0 +1,18 @@
+---
+- name: Install reflector
+  pacman:
+    name: reflector
+    state: present
+  notify: update mirrors
+
+- name: Install mirrors timer
+  copy:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    owner: root
+    group: root
+    mode: u=rw,g=r,o=r
+  with_items:
+    - { src: 'mirrors.timer', dest: '/etc/systemd/system/mirrors.timer'}
+    - { src: 'mirrors.service', dest: '/etc/systemd/system/mirrors.service'}
+  notify: update mirrors

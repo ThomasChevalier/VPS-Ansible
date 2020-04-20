@@ -1,0 +1,80 @@
+---
+- name: Install nextcloud
+  pacman:
+    name: nextcloud
+    state: present
+
+- name: Add pacman hook to update nextcloud's database on update
+  copy:
+    src: nextcloud.hook
+    dest: /etc/pacman.d/hooks/nextcloud.hook
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Install required php modules
+  lineinfile:
+    path: /etc/php/php.ini
+    regexp: '^;?\s*extension={{ item }}'
+    line: "extension={{ item }}"
+    state: present
+  with_items:
+    - gd
+    - ctype
+    - curl
+    - dom
+    - GD
+    - iconv
+    - JSON
+    - mbstring
+    - openssl
+    - posix
+    - session
+    - SimpleXML
+    - XMLReader
+    - XMLWriter
+    - zip
+    - zlib
+    # Recommended
+    - fileinfo
+    - bz2
+    - intl
+    # MySQL/MariaDB
+    - pdo_mysql
+    - mysqli
+  notify: restart webserver
+
+  -name: Install required php packages
+    pacman:
+      name:
+        - php-intl # Translation
+        - php-fpm] # FastCGI
+      state: present
+
+# Don't install OPCache for the moment because i don't know how to configure it
+- name: Install OPCache
+  lineinfile:
+    path: /etc/php/php.ini
+    regexp: "^;?zend_extension=opcache"
+    line: "zend_extension=opcache"
+    state: present
+  when: false
+
+
+# Configure MySQL/MariaDB
+# Additional configuration might be needed to support emoji in nextcloud
+- name: Add mysql database
+  mysql_db:
+    name: nextcloud
+    encoding: utf8
+    collation: utf8_unicode_ci
+  notify: restart myqsl
+
+# Warning : NO SSL implementation
+
+- name: Start FastCGI service
+  service:
+    name: php-fpm.service
+    enabled: yes
+    state: started
+    

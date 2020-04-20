@@ -1,0 +1,102 @@
+---
+- name: Install nftables
+  pacman:
+    name: nftables
+    state: present
+  register: nftables_install
+
+- name: Reboot
+  shell: "sleep 5 && reboot"
+  async: 1
+  poll: 0
+  when: nftables_install.changed
+
+- name: Reset ssh connection
+  meta: reset_connection
+
+- name: Change ssh configuration (Ansible)
+  set_fact:
+    ansible_port: "{{ ssh_port }}"
+    ansible_user: "{{ non_root_user }}"
+    ansible_ssh_private_key_file: "{{ ssh_non_root_private_key_file }}"
+    ansible_ssh_pass:
+
+- name: Waiting for the server to reboot
+  wait_for_connection:
+    sleep: 20
+    delay: 20
+    timeout: 300
+  when: nftables_install.changed
+
+- name: Configure nftables
+  template:
+    src: nftables.conf.j2
+    dest: /etc/nftables.conf
+    owner: root
+    group: root
+    mode: u=rw,g=r,o=r
+    validate: nft -cf %s
+  register: nftables_conf
+
+- name: Start/enable nftables
+  service:
+    name: nftables
+    enabled: yes
+    state: "{{ 'restarted' if nftables_conf.changed else 'started' }}"
+
+- name: Install fwknop (Single Packet Authentification)
+  pacman:
+    name: fwknop
+    state: present
+
+- name: Configure fwknop
+  template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    owner: root
+    group: root
+    mode: 0600
+  with_items:
+    - { src: "access.conf.j2", dest: "/etc/fwknop/access.conf"}
+    - { src: "fwknopd.conf.j2", dest: "/etc/fwknop/fwknopd.conf"}
+  notify: restart fwknopd
+
+- name: Grant access to current ip
+  command: nft add element inet filter fwknop_allowed { {{ spa_temp_white_list }} . tcp . {{ ssh_port }} timeout 1h }
+
+- name: Automatic restart of fwknopd
+  template:
+    src: fwknopd.service.j2
+    dest: /usr/lib/systemd/system/fwknopd.service
+    owner: root
+    group: root
+    mode: u=rw,g=r,o=r
+  notify: restart fwknopd
+
+- name: Start/enable fwknopd
+  service:
+    name: fwknopd
+    enabled: yes
+    state: started
+
+- name: Install fail2ban
+  pacman:
+    name: fail2ban
+    state: present
+
+- name: Configure fail2ban
+  template:
+    src: jail.local.j2
+    dest: /etc/fail2ban/jail.local
+    owner: root
+    group: root
+    mode: u=rw,g=r,o=r
+  notify: restart fail2ban
+
+- name: Start/enable fail2ban
+  service:
+    name: fail2ban
+    enabled: yes
+    state: started
+
+# Todo : filter bogon https://thefloss.life/2019/03/14/using-ipset-and-iptables-to-block-full-bogons/

@@ -1,0 +1,8 @@
+SOURCE                     ANY
+OPEN_PORTS                 tcp/22
+REQUIRE_SOURCE_ADDRESS     Y
+KEY_BASE64                 {{ spa_base64_key }}
+HMAC_KEY_BASE64            {{ spa_base64_hmac_key }}
+FW_ACCESS_TIMEOUT          600
+CMD_CYCLE_OPEN             nft add element inet filter fwknop_allowed { $SRC . $PROTO . $PORT timeout 10m } 
+CMD_CYCLE_CLOSE            NONE

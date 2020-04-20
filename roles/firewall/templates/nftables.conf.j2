@@ -1,0 +1,66 @@
+#!/usr/bin/nft -f
+
+flush ruleset
+
+table inet filter{
+
+  set unprotected_in_tcp {
+    type inet_service
+    elements = { 443 }
+  }
+
+  set fwknop_allowed {
+    type ipv4_addr . inet_proto . inet_service; flags timeout;
+  }
+
+  set blacklisted_full {
+    type ipv4_addr; flags timeout;
+  }
+
+  set blacklisted_stealth {
+    type ipv4_addr; flags timeout;
+  }
+
+  chain output{
+    type filter hook output priority 0; policy accept;
+  }
+
+  chain input{
+    type filter hook input priority 0; policy drop; 
+
+    # Allow all trafic through loopback
+    iifname lo accept
+
+    # Drop blacklisted IPs that we don't care if they found they have been banned
+    ip saddr @blacklisted_full drop
+
+    # Allow basics
+    ct state {established, related} accept
+    ct state invalid drop
+    ip6 nexthdr icmpv6 icmpv6 type { echo-request, echo-reply, packet-too-big, time-exceeded, parameter-problem, destination-unreachable, mld-listener-query, mld-listener-report, mld-listener-reduction, nd-router-solicit, nd-router-advert, nd-neighbor-solicit, nd-neighbor-advert, ind-neighbor-solicit, ind-neighbor-advert, mld2-listener-report } accept
+    ip protocol icmp icmp type { echo-request, echo-reply, destination-unreachable, router-solicitation, router-advertisement, time-exceeded, parameter-problem } accept
+    ip protocol igmp accept
+
+    # Allow trafic to unprotected ports
+    tcp dport @unprotected_in_tcp accept
+
+    # Protects from port scanning
+    tcp flags syn meter syn_meter { ip saddr timeout 10s limit rate over 10/second} add @blacklisted_full { ip saddr timeout 1h } log prefix "[BAN] Too many tcp syn: " drop
+
+    # Drop blacklisted IPs for which we don't want them to know they are banned
+    ip saddr @blacklisted_stealth drop
+
+    # Protects spa server 
+    udp dport {{ spa_server_port }} meter spa_meter { ip saddr timeout 10s limit rate over 5/second} add @blacklisted_stealth { ip saddr timeout 1h } log prefix "[BAN] Too many spa packets " drop
+
+    # Allow trafic to authenticated ip
+    ip saddr . ip protocol . tcp dport @fwknop_allowed counter log prefix "New access to protected ports: " accept
+
+    counter
+  }
+
+  chain forward{
+    type filter hook forward priority 0; policy drop
+    iifname lo accept	
+  }
+}

@@ -1,0 +1,43 @@
+---
+- name: Add ssh keys
+  authorized_key:
+    user: "{{ non_root_user }}"
+    key: "{{ lookup('file', lookup('vars', 'ssh_non_root_key_file')) }}"
+  register: ssh_keys
+
+- name: Hardening ssh configuration
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: "{{ item.regex }}"
+    line: "{{ item.line }}"
+    state: present
+  with_items:
+    - { regex: '^#?\s*Port\s+\d+', line: "Port {{ ssh_port }}"}
+    - { regex: '^#?\s*PasswordAuthentication', line: "PasswordAuthentication no"}
+    - { regex: '^#?\s*PermitRootLogin', line: "PermitRootLogin no"}
+  register: ssh_config
+
+- block:
+  - name: Restart ssh
+    service:
+      name: sshd
+      enabled: yes
+      state: restarted
+
+  - name: Reset ssh connection
+    meta: reset_connection
+
+  - name: Change ssh configuration (Ansible)
+    set_fact:
+      ansible_port: "{{ ssh_port }}"
+      ansible_user: "{{ non_root_user }}"
+      ansible_ssh_private_key_file: "{{ ssh_non_root_private_key_file }}"
+      ansible_ssh_pass:
+
+  - name: Waiting for the service to restart
+    wait_for_connection:
+      sleep: 5
+      delay: 10
+      timeout: 300
+
+  when: ssh_keys.changed or ssh_config.changed

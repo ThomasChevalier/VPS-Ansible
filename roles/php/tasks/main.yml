@@ -1,0 +1,6 @@
+---
+- name: Install PHP
+  pacman:
+    name: php
+    state: present
+    

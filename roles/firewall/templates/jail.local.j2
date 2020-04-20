@@ -1,0 +1,10 @@
+[DEFAULT]
+bantime = 7d
+banaction = nftables
+
+[sshd]
+enabled = true
+port = {{ ssh_port }}
+maxretry = 3
+findtime  = 1d
+ignoreip = 127.0.0.1/8 {{ spa_temp_white_list }}

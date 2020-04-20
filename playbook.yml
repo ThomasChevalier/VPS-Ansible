@@ -1,0 +1,32 @@
+---
+- hosts: vps
+  become: true
+  gather_facts: no
+
+  pre_tasks:
+    - block:
+      - name: Test remote connection
+        wait_for_connection:
+          timeout: 1
+
+      rescue:
+        # Set default connection method
+        - name: Change connection method
+          set_fact:
+            ansible_port: "22"
+            ansible_user: "{{ default_user }}"
+            ansible_ssh_pass: "{{ default_user_password }}"
+
+    - name: Gathering Facts
+      setup:
+
+    # Partial update is not supported on archlinux
+    - name: Update packages
+      pacman:
+        update_cache: yes
+        upgrade: yes
+  roles:
+    - {role: user, tags: ['user']}
+    - {role: ssh, tags: ['ssh']}
+    - {role: firewall, tags: ['firewall']}
+    - {role: mirrors, tags: ['mirrors']}
